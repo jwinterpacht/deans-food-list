@@ -1,0 +1,139 @@
+/* Backend for DeansFoodList */
+
+/* https://dev.to/nasreenkhalid/simple-react-js-and-mysql-integration-crud-app-backend-5aom
+this article has a frontend tutorial linked in it */
+
+const bcrypt = require('bcryptjs');
+const express = require('express');
+const cors = require('cors');
+const app = express();
+const secretKey = 'token_key';
+const jwt = require('jsonwebtoken');
+const port = 3001;
+const bodyParser = require('body-parser'); //used for parsing JSON files
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+
+
+
+//Create MySQL database connection template
+const mysql = require('mysql2');
+const db = mysql.createConnection({
+    host: "localhost",
+    user: "userjonah", //can also try userjonah with password my_password
+    password: "my_password",
+    database: "my_database"
+})
+
+//Actually connect to the database
+db.connect((error) => {
+    if(error) {
+        console.error('Error connecting to MySQL:', error);
+    } else {
+        console.log('Connected to MySQL :D');
+    }
+})
+
+//Create new DeansFoodList user
+app.post('/signup', async (request, response) => {
+    const { username, password } = request.body;
+
+    try {
+        // Check if the username is already taken
+        const [results] = await db.promise().query('SELECT * FROM users WHERE username = ?', [username]);
+
+        if (results.length > 0) {
+            //console.log({results});
+            //console.log(results.length);
+            //more than one response.status message (returned or not) causes the database to disconnect
+            return response.status(406).json({ message: 'Username already taken' }); 
+            //return response.status(400).json({ error: 'Username is already taken' });
+        }
+
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert the new user into the database
+        await db.promise().query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
+
+        response.status(201).json({ message: 'User created successfully :D' }); 
+
+    } catch (error) {
+        console.error(error);
+        response.status(500).json({ error: error.message });
+    }
+});
+
+// User login
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+        if(err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        if(results.length === 0) {
+            return res.status(401).json({error: 'Invalid username or password'});
+        }
+
+        const user = results[0];
+
+        // Compare provided password with the unhashed version of the stored password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if(!validPassword) {
+            return res.status(401).json({ err: 'Invalid username or password'});
+        }
+
+        //Generate a token granting login for 1 hour
+        const token = jwt.sign({id: user.id, username: user.username}, secretKey, { expiresIn: '1h' });
+        res.json({ token });
+    });
+});
+
+
+
+// Middleware to authenticate JWT token
+function authenticateToken(req, res, next) {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(403).json({ error: 'No token provided' });
+  
+    jwt.verify(token, secretKey, (err, user) => {
+      if (err) return res.status(403).json({ error: 'Invalid token' });
+  
+      req.user = user; // Add the user info (from token) to the request object
+      next(); // Proceed to the next middleware
+    });
+  }
+
+// Get all items (protected with JWT authentication)
+app.get('/items', authenticateToken, (req, res) => {
+    const userId = req.user.id; // Extract user id from JWT token
+  
+    db.query('SELECT * FROM shopping_list WHERE user_id = ?', [userId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(results);
+    });
+  });
+
+// Add a new item (protected with JWT authentication)
+app.post('/items', authenticateToken, (req, res) => {
+    const { ListItem } = req.body;
+    const userId = req.user.id; // Extract user id from JWT token
+  
+    db.query('INSERT INTO shopping_list (ListItem, user_id) VALUES (?, ?)', [ListItem, userId], (err, result) => {
+      if (err) {
+        console.error('Error inserting into database:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ id: result.insertId, ListItem });
+    });
+  });
+
+//Start server
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+})
