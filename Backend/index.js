@@ -93,7 +93,7 @@ app.post('/login', (req, res) => {
 });
 
 
-
+/* AUTHENTICATION */
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -106,6 +106,9 @@ function authenticateToken(req, res, next) {
       next(); // Proceed to the next middleware
     });
   }
+
+
+/* ITEM HANDLING */
 
 // Get all items (protected with JWT authentication)
 app.get('/items', authenticateToken, (req, res) => {
@@ -132,6 +135,42 @@ app.post('/items', authenticateToken, (req, res) => {
       res.status(201).json({ id: result.insertId, ListItem });
     });
   });
+
+// Check the checkbox of an item
+app.post('/items_check', authenticateToken, (req, res) => {
+    const the_item = req.body;
+    const id = the_item.the_item.id;
+    //const id = req.body;
+    const userId = req.user.id; // Extract user id from JWT token
+
+    //console.log("Received item:", the_item, "UserID:", userId); //shows the value that the item is being changed to
+    const newCompleteValue = the_item.the_item.complete ? false : true; //set value of (Boolean) the_item.the_item.complete to its opposite
+    db.query('UPDATE shopping_list SET complete = ? where id = ? AND user_id = ?', [ newCompleteValue,id, userId], (err, result) => {
+        if(err) {
+            console.error('Error changing value of box to checked on database side: ', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({})
+    })
+})
+
+// Delete an item
+app.post('/items_delete', authenticateToken, (req, res) => {
+    //const {ListItem} = req.body;
+    const item = req.body;
+    const userId = req.user.id; // Extract user id from JWT token
+
+    //console.log("ID: ",item.item.id);
+    console.log(item);
+
+    db.query('DELETE FROM shopping_list WHERE complete = true AND user_id = ?', [userId], (err, result) => {
+        if(err) {
+            console.error('Error changing value of box to checked on database side: ', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({})
+    })
+})
 
 //Start server
 app.listen(port, () => {
