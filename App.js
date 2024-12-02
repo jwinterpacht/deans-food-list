@@ -38,22 +38,16 @@ function App() {
 
 
 
-  const [isAuthentic, setIsAuthentic] = useState(() => {
-    const token = localStorage.getItem('token');
-    return !!token; //!! converts token to a bool
-  })
+    // State to track user authentication
+    const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        const token = localStorage.getItem('token'); // Check for stored token
+        return !!token; // Convert token to boolean
+    });
 
   const handleLogout = () => {
     localStorage.removeItem('token'); //Remove the token when logging out
-    setIsAuthentic(false);
+    setIsAuthenticated(false);
     console.log('User has logged out');
-  }
-
-  const isAuthenticated = () => {
-    const token = localStorage.getItem('token');
-    /* Return token as a bool. Return value of authentication. Both must be true for authentication to pass. */
-    console.log(!!token);
-    return !!token && isAuthentic;
   }
 
   return (
@@ -61,25 +55,33 @@ function App() {
       <header>
         <h1>Deans Food List</h1>
         <nav>
-          <Link to="/home">Home</Link>
-          <Link to="/signup">SignUp</Link>
-          <Link to="/login">Login</Link>
-          <Link to="/inventory">Inventory</Link>
-          <Link to="/recipes">Recipes</Link>
-          <Link to="/" onClick={handleLogout}>Logout</Link>
+          {isAuthenticated ? (
+            <>
+              <Link to="/home">Home</Link>
+              <Link to="/inventory">Inventory</Link>
+              <Link to="/recipes">Recipes</Link>
+              <button className="logout-button" onClick={handleLogout}>Sign Out</button>
+            </>
+          ) : (
+            <>
+              <Link to="/signup">Sign Up</Link>
+              <Link to="/login">Log In</Link>
+            </>
+          )}
         </nav>
       </header>
 
       <Routes>
-        <Route path="/" element={isAuthenticated() ? <HomePage /> : <Navigate to="/login" />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/inventory" element={isAuthenticated() ? <InventoryPage /> : <Navigate to="/login" />} />
+            <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/inventory" />} />
+            <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/inventory" />} />
+            <Route path="/inventory" element={isAuthenticated ? <InventoryPage /> : <Navigate to="/login" />} />
+            <Route path="/" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
+            <Route path="/home" element={<HomePage />} />
         <Route
           path="/recipes"
-          element={isAuthenticated() ? <RecipesPage inventoryItems={inventoryItems} /> : <Navigate to="/login" />}
+          element={isAuthenticated ? <RecipesPage inventoryItems={inventoryItems} /> : <Navigate to="/login" />}
         />
+
       </Routes>
     </Router>
 
