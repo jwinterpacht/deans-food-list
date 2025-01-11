@@ -1,5 +1,5 @@
 # deans-food-list
-Created by: Jonah Raef (repo owner), Jaden Winterpacht, David Arellano, Santiago Kipp -- all 4 are computer science students.
+Created by: Jonah Raef, Jaden Winterpacht, David Arellano, Santiago Kipp -- all four are computer science students.
 
 Description:
   Shopping list web app creating in React.js, utilizing Express.js for the backend, MySQL for the database.
